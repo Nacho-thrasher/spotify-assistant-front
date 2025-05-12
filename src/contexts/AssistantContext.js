@@ -12,7 +12,7 @@ export const useAssistant = () => useContext(AssistantContext);
 
 // Proveedor del contexto
 export const AssistantContextProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // Inicializar mensajes desde localStorage o usar el mensaje inicial
   const [messages, setMessages] = useState(() => {
     const savedMessages = localStorage.getItem('chat_messages');
@@ -195,6 +195,9 @@ export const AssistantContextProvider = ({ children }) => {
   const sendMessage = async (message) => {
     if (!message || isProcessing) return;
     
+    // Obtener userId para enviar al backend
+    const userId = user?.id;
+    
     // Mostrar notificación de procesamiento
     const toastId = toast.info('🤖 Procesando tu mensaje...', {
       autoClose: false,
@@ -217,8 +220,9 @@ export const AssistantContextProvider = ({ children }) => {
     setMessages(prevMessages => [...prevMessages, userMessage]);
     
     try {
-      // Enviar mensaje al backend
-      const response = await assistantService.sendMessage(message);
+      // Enviar mensaje al backend con el userId
+      console.log('📤 Enviando mensaje al backend con userId:', userId);
+      const response = await assistantService.sendMessage(message, userId);
 
       if (response) {
         const assistantMessage = {
