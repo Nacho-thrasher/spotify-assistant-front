@@ -113,6 +113,9 @@ export const AssistantContextProvider = ({ children }) => {
       localStorage.setItem('chat_messages', JSON.stringify(messages));
     }
   }, [messages]);
+  
+  // Aquí elimino la primera declaración duplicada de clearChatHistory
+  // La real implementación estará al final del componente
 
   // Manejar respuestas del asistente
   const handleAssistantResponse = useCallback((data) => {
@@ -351,7 +354,7 @@ export const AssistantContextProvider = ({ children }) => {
   }, []);
 
   // Limpiar historial de mensajes
-  const clearMessages = () => {
+  const clearChatHistory = useCallback(() => {
     const initialMessage = {
       role: 'assistant',
       content: 'Hola, soy tu asistente de Spotify. ¿En qué puedo ayudarte hoy?',
@@ -361,26 +364,33 @@ export const AssistantContextProvider = ({ children }) => {
     };
     
     setMessages([initialMessage]);
-    // También limpiar el localStorage
+    
+    // Limpiar mensajes en localStorage
     localStorage.setItem('chat_messages', JSON.stringify([initialMessage]));
     
-    // Refrescar la cola cuando se limpian los mensajes
+    // Notificar al usuario
+    toast.info('Historial de chat limpiado', {
+      position: "top-center",
+      autoClose: 2000
+    });
+    
+    // También refrescar la cola
     refreshQueue();
-  };
-
+  }, [refreshQueue]);
+  
   // Valor del contexto
   const value = {
     messages,
     isProcessing,
     currentTrack,
     isPlaying,
-    setIsPlaying, // Exponer la función setter para uso externo
+    setIsPlaying,
     queueItems,
     sendMessage,
-    clearMessages,
-    refreshQueue  // Exponer la función de actualización manual de la cola
+    clearChatHistory,
+    refreshQueue
   };
-
+  
   return (
     <AssistantContext.Provider value={value}>
       {children}

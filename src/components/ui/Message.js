@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiMusic, FiZap  } from 'react-icons/fi'; // Importar icono de cerebro para IA
+import { FiMusic, FiZap, FiPlus } from 'react-icons/fi'; // Importamos íconos necesarios
 import FeedbackButton from './FeedbackButton';
+import { spotifyService } from '../../services/api';
+import { toast } from 'react-toastify';
 
 const MessageContainer = styled.div`
   display: flex;
@@ -39,6 +41,7 @@ const SearchResultItem = styled.div`
   border-radius: 4px;
   gap: 10px;
   position: relative;
+  padding-right: ${props => props.showActions ? '70px' : '40px'}; // Espacio para los botones/badges
 `;
 
 const SearchResultImage = styled.div`
@@ -103,6 +106,37 @@ const AIBadge = styled.div`
   display: flex;
   align-items: center;
   gap: 3px;
+  z-index: 10;
+`;
+
+// Botón para añadir a la cola
+const AddToQueueButton = styled.button`
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  right: 8px;
+  bottom: 8px;
+  background: #1DB954;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.9;
+  
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  
+  &:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 `;
 
 // Estilo para el tooltips explicativo
@@ -168,8 +202,38 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
                     )
                   : null;
                 
+                const [isAddingToQueue, setIsAddingToQueue] = useState(false);
+                
+                const handleAddToQueue = async (trackUri) => {
+                  if (isAddingToQueue) return;
+                  
+                  setIsAddingToQueue(true);
+                  try {
+                    await spotifyService.addToQueue(trackUri);
+                    // Mostrar feedback al usuario con toast
+                    toast.success(
+                      <div>
+                        <strong>{track.name}</strong> de {track.artist} <br/>
+                        añadida a la cola
+                      </div>,
+                      {
+                        position: "bottom-right",
+                        autoClose: 2000,
+                        hideProgressBar: false,
+                        closeOnClick: true,
+                        pauseOnHover: true,
+                      }
+                    );
+                    console.log('Canción añadida a la cola exitosamente');
+                  } catch (error) {
+                    console.error('Error al añadir a la cola:', error);
+                  } finally {
+                    setIsAddingToQueue(false);
+                  }
+                };
+                
                 return (
-                  <SearchResultItem key={index}>
+                  <SearchResultItem key={index} showActions={true}>
                     <SearchResultImage image={track.image} />
                     <SearchResultInfo>
                       <TrackName>{track.name}</TrackName>
@@ -187,6 +251,16 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
                         </TrackTooltip>
                       </>
                     )}
+                    
+                    {track.uri && (
+                      <AddToQueueButton 
+                        onClick={() => handleAddToQueue(track.uri)}
+                        disabled={isAddingToQueue}
+                        title="Añadir a la cola"
+                      >
+                        <FiPlus size={14} />
+                      </AddToQueueButton>
+                    )}                    
                   </SearchResultItem>
                 );
               })}

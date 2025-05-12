@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import Message from '../ui/Message';
 import MessageInput from '../ui/MessageInput';
 import { useAssistant } from '../../contexts/AssistantContext';
-import { FiMusic } from 'react-icons/fi';
+import { FiMusic, FiTrash2 } from 'react-icons/fi';
 
 const ChatContainer = styled.div`
   display: flex;
@@ -12,6 +12,31 @@ const ChatContainer = styled.div`
   max-width: 700px;
   width: 100%;
   margin: 0 auto;
+  position: relative;
+`;
+
+const ClearHistoryButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(51, 51, 51, 0.85);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  
+  &:hover {
+    background-color: #e74c3c;
+    transform: scale(1.1);
+  }
 `;
 
 const MessagesContainer = styled.div`
@@ -75,7 +100,7 @@ const TypingIndicator = styled.div`
 `;
 
 const ChatLayout = () => {
-  const { messages, isProcessing, sendMessage } = useAssistant();
+  const { messages, isProcessing, sendMessage, clearChatHistory } = useAssistant();
   const messagesEndRef = useRef(null);
 
   // Desplazarse automáticamente al último mensaje
@@ -85,8 +110,20 @@ const ChatLayout = () => {
     }
   }, [messages]);
 
+  // Manejar clic en el botón de limpiar historial
+  const handleClearHistory = () => {
+    if (window.confirm('¿Estás seguro de que deseas limpiar todo el historial del chat?')) {
+      clearChatHistory();
+    }
+  };
+  
   return (
     <ChatContainer>
+      {messages.length > 1 && (
+        <ClearHistoryButton onClick={handleClearHistory} title="Limpiar historial">
+          <FiTrash2 size={16} />
+        </ClearHistoryButton>
+      )}
       <MessagesContainer>
         {messages.map((message, index) => (
           <Message
