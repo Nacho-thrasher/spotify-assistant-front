@@ -95,6 +95,8 @@ const ChatLayout = () => {
             sender={message.role}
             timestamp={message.timestamp}
             searchResults={message.searchResults}
+            action={message.action}
+            parameters={message.parameters}
           />
         ))}
         {isProcessing && (

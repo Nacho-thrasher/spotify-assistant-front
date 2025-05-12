@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FiMusic } from 'react-icons/fi';
+import FeedbackButton from './FeedbackButton';
 
 const MessageContainer = styled.div`
   display: flex;
@@ -19,6 +20,8 @@ const MessageBubble = styled.div`
   
   border-bottom-right-radius: ${(props) => (props.isUser ? '4px' : '18px')};
   border-bottom-left-radius: ${(props) => (props.isUser ? '18px' : '4px')};
+  display: flex;
+  flex-direction: column;
 `;
 
 const SearchResultsContainer = styled.div`
@@ -68,10 +71,20 @@ const ArtistName = styled.div`
   text-overflow: ellipsis;
 `;
 
+const MessageContent = styled.div`
+  flex: 1;
+`;
+
+const MessageFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+`;
+
 const Timestamp = styled.div`
   font-size: 10px;
   color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
   text-align: right;
 `;
 
@@ -83,29 +96,40 @@ const formatTime = (date) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const Message = ({ text, sender, timestamp, searchResults }) => {
+const Message = ({ text, sender, timestamp, searchResults, action, parameters }) => {
   const isUser = sender === 'user';
   
   return (
     <MessageContainer isUser={isUser}>
       <MessageBubble isUser={isUser}>
-        {text}
+        <MessageContent>
+          {text}
+          
+          {searchResults && searchResults.tracks && searchResults.tracks.length > 0 && (
+            <SearchResultsContainer>
+              {searchResults.tracks.map((track, index) => (
+                <SearchResultItem key={index}>
+                  <SearchResultImage image={track.image} />
+                  <SearchResultInfo>
+                    <TrackName>{track.name}</TrackName>
+                    <ArtistName>{track.artist}</ArtistName>
+                  </SearchResultInfo>
+                </SearchResultItem>
+              ))}
+            </SearchResultsContainer>
+          )}
+        </MessageContent>
         
-        {searchResults && searchResults.tracks && searchResults.tracks.length > 0 && (
-          <SearchResultsContainer>
-            {searchResults.tracks.map((track, index) => (
-              <SearchResultItem key={index}>
-                <SearchResultImage image={track.image} />
-                <SearchResultInfo>
-                  <TrackName>{track.name}</TrackName>
-                  <ArtistName>{track.artist}</ArtistName>
-                </SearchResultInfo>
-              </SearchResultItem>
-            ))}
-          </SearchResultsContainer>
-        )}
-        
-        <Timestamp>{formatTime(timestamp)}</Timestamp>
+        <MessageFooter>
+          <Timestamp>{formatTime(timestamp)}</Timestamp>
+          {!isUser && (
+            <FeedbackButton 
+              message={text} 
+              action={action} 
+              parameters={parameters} 
+            />
+          )}
+        </MessageFooter>
       </MessageBubble>
     </MessageContainer>
   );

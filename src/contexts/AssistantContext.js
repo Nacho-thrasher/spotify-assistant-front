@@ -95,7 +95,9 @@ export const AssistantContextProvider = ({ children }) => {
         const initialMessage = {
           role: 'assistant',
           content: 'Hola, soy tu asistente de Spotify. ¿En qué puedo ayudarte hoy?',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          action: 'greeting',
+          parameters: {}
         };
         setMessages([initialMessage]);
       }
@@ -113,64 +115,68 @@ export const AssistantContextProvider = ({ children }) => {
   }, [messages]);
 
   // Manejar respuestas del asistente
-  const handleAssistantResponse = (data) => {
-    if (data.message) {
-      const assistantMessage = {
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prevMessages => [...prevMessages, assistantMessage]);
+  const handleAssistantResponse = useCallback((data) => {
+    console.log('Respuesta del asistente recibida:', data);
+    
+    // Añadir mensaje a la conversación
+    const newMessage = {
+      role: 'assistant',
+      content: data.message,
+      timestamp: data.timestamp || new Date().toISOString(),
+      action: data.action,
+      parameters: data.parameters
+    };
+    
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    
+    // Mostrar notificación de acción si corresponde
+    if (data.action) {
+      let notificationMsg = '';
+      let notificationType = 'info';
       
-      // Mostrar notificación de acción si corresponde
-      if (data.action) {
-        let notificationMsg = '';
-        let notificationType = 'info';
-        
-        switch(data.action) {
-          case 'PLAY':
-            notificationMsg = '▶️ Reproducción iniciada';
-            notificationType = 'success';
-            break;
-          case 'PAUSE':
-            notificationMsg = '⏸️ Reproducción pausada';
-            notificationType = 'info';
-            break;
-          case 'NEXT':
-            notificationMsg = '⏭️ Pasando a la siguiente canción';
-            notificationType = 'info';
-            break;
-          case 'PREVIOUS':
-            notificationMsg = '⏮️ Volviendo a la canción anterior';
-            notificationType = 'info';
-            break;
-          case 'ADD_TO_QUEUE':
-            notificationMsg = '🎵 Canción añadida a la cola';
-            notificationType = 'success';
-            break;
-          case 'SEARCH':
-            notificationMsg = '🔍 Búsqueda de música iniciada';
-            notificationType = 'info';
-            break;
-          case 'VOLUME':
-            notificationMsg = '🔊 Volumen ajustado';
-            notificationType = 'info';
-            break;
-          case 'ERROR':
-            notificationMsg = '❌ Error al procesar la acción';
-            notificationType = 'error';
-            break;
-          default:
-            // No mostrar notificación para acciones desconocidas
-            break;
-        }
-        
-        if (notificationMsg) {
-          toast[notificationType](notificationMsg);
-        }
+      switch(data.action) {
+        case 'PLAY':
+          notificationMsg = '▶️ Reproducción iniciada';
+          notificationType = 'success';
+          break;
+        case 'PAUSE':
+          notificationMsg = '⏸️ Reproducción pausada';
+          notificationType = 'info';
+          break;
+        case 'NEXT':
+          notificationMsg = '⏭️ Pasando a la siguiente canción';
+          notificationType = 'info';
+          break;
+        case 'PREVIOUS':
+          notificationMsg = '⏮️ Volviendo a la canción anterior';
+          notificationType = 'info';
+          break;
+        case 'ADD_TO_QUEUE':
+          notificationMsg = '🎵 Canción añadida a la cola';
+          notificationType = 'success';
+          break;
+        case 'SEARCH':
+          notificationMsg = '🔍 Búsqueda de música iniciada';
+          notificationType = 'info';
+          break;
+        case 'VOLUME':
+          notificationMsg = '🔊 Volumen ajustado';
+          notificationType = 'info';
+          break;
+        case 'ERROR':
+          notificationMsg = '❌ Error al procesar la acción';
+          notificationType = 'error';
+          break;
+        default:
+          // No mostrar notificación para acciones desconocidas
+          break;
+      }
+      
+      if (notificationMsg) {
+        toast[notificationType](notificationMsg);
       }
     }
-  };
+  }, []);
 
   // Manejar actualizaciones del reproductor
   const handlePlaybackUpdate = useCallback((data) => {
@@ -184,10 +190,6 @@ export const AssistantContextProvider = ({ children }) => {
       setIsPlaying(data.isPlaying);
     }
   }, []);
-
-
-
-
 
   // Enviar mensaje al asistente
   const sendMessage = async (message) => {
@@ -203,11 +205,13 @@ export const AssistantContextProvider = ({ children }) => {
     
     setIsProcessing(true);
     
-    // Añadir mensaje del usuario al estado
+    // Añadir mensaje del usuario
     const userMessage = {
       role: 'user',
       content: message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      action: null,
+      parameters: null
     };
     
     setMessages(prevMessages => [...prevMessages, userMessage]);
@@ -295,7 +299,9 @@ export const AssistantContextProvider = ({ children }) => {
         role: 'assistant',
         content: 'Lo siento, ha ocurrido un error al procesar tu mensaje. Por favor, intenta de nuevo.',
         timestamp: new Date().toISOString(),
-        isError: true
+        isError: true,
+        action: 'error',
+        parameters: {}
       };
       
       setMessages(prevMessages => [...prevMessages, errorMessage]);
@@ -330,7 +336,9 @@ export const AssistantContextProvider = ({ children }) => {
     const initialMessage = {
       role: 'assistant',
       content: 'Hola, soy tu asistente de Spotify. ¿En qué puedo ayudarte hoy?',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      action: 'greeting',
+      parameters: {}
     };
     
     setMessages([initialMessage]);

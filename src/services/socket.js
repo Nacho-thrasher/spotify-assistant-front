@@ -51,6 +51,21 @@ export const subscribeToAssistant = (callback) => {
     callback(data);
   });
   
+  // Suscribirse a respuestas de acciones corregidas
+  socket.on('action_result', (data) => {
+    if (data.success) {
+      console.log('Acción corregida ejecutada:', data);
+      // Notificar al usuario que la corrección fue aplicada
+      callback({
+        message: data.message,
+        action: data.action,
+        parameters: data.parameters || {},
+        timestamp: new Date().toISOString(),
+        isCorrectionResult: true
+      });
+    }
+  });
+  
   return true;
 };
 
@@ -73,10 +88,41 @@ export const disconnectSocket = () => {
   }
 };
 
+// Enviar feedback positivo
+export const sendPositiveFeedback = (message, action, parameters) => {
+  if (!socket) return false;
+  
+  socket.emit('user_feedback', {
+    originalMessage: message,
+    originalAction: action,
+    feedbackType: 'positive',
+    timestamp: Date.now()
+  });
+  
+  return true;
+};
+
+// Enviar corrección
+export const sendCorrection = (originalMessage, originalAction, correctedAction, correctedParameters) => {
+  if (!socket) return false;
+  
+  socket.emit('user_correction', {
+    originalMessage,
+    originalAction,
+    correctedAction,
+    correctedParameters,
+    timestamp: Date.now()
+  });
+  
+  return true;
+};
+
 export default {
   initializeSocket,
   getSocket,
   subscribeToAssistant,
   subscribeToPlayback,
-  disconnectSocket
+  disconnectSocket,
+  sendPositiveFeedback,
+  sendCorrection
 };
