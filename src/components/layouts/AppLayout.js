@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FiLogOut, FiMusic, FiRefreshCw, FiMessageSquare, FiBarChart2 } from 'react-icons/fi';
+import { FiLogOut, FiMusic, FiRefreshCw, FiMessageSquare, FiBarChart2, FiUser } from 'react-icons/fi';
 import MusicPlayer from '../ui/MusicPlayer';
 import Button from '../ui/Button';
 import QueueDisplay from '../ui/QueueDisplay';
@@ -603,6 +603,11 @@ const AppLayout = () => {
             <NavItem>
               <StyledNavLink to="/history">
                 <FiBarChart2 size={18} /> Mi Historial
+              </StyledNavLink>
+            </NavItem>
+            <NavItem>
+              <StyledNavLink to="/profile">
+                <FiUser size={18} /> Perfil
               </StyledNavLink>
             </NavItem>
           </NavList>
