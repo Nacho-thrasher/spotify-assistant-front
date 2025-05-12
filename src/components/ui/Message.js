@@ -1,8 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FiMusic, FiBrain } from 'react-icons/fi'; // Importar icono de cerebro para IA
-// import { FiMusic } from 'react-icons/fi';
-// import { IoMdBrain } from 'react-icons/io'; // Importar icono de cerebro para IA
 import FeedbackButton from './FeedbackButton';
 
 const MessageContainer = styled.div`
