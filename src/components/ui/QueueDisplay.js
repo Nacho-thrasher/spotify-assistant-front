@@ -4,6 +4,7 @@ import { FiMusic, FiTrash2, FiRefreshCw, FiPlay } from 'react-icons/fi';
 import { spotifyService } from '../../services/api';
 import { useAssistant } from '../../contexts/AssistantContext';
 import { toast } from 'react-toastify';
+import { FixedSizeList as List } from 'react-window';
 
 const QueueContainer = styled.div`
   background-color: #181818;
@@ -30,6 +31,12 @@ const pulse = keyframes`
   100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
 `;
 
+const playPulse = keyframes`
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+`;
+
 const QueueTitle = styled.div`
   display: flex;
   align-items: center;
@@ -47,10 +54,22 @@ const QueueItemContainer = styled.div`
   padding: 6px;
   border-radius: 4px;
   margin-bottom: 6px;
-  background-color: ${props => props.isCurrent ? 'rgba(29, 185, 84, 0.1)' : 'transparent'};
-  border-left: ${props => props.isCurrent ? '3px solid #1DB954' : '3px solid transparent'};
+  background-color: ${props => {
+    if (props.isCurrent) return 'rgba(29, 185, 84, 0.1)';
+    if (props.isSelected) return 'rgba(29, 185, 84, 0.05)';
+    return 'transparent';
+  }};
+  border-left: ${props => {
+    if (props.isCurrent) return '3px solid #1DB954';
+    if (props.isSelected) return '3px solid rgba(29, 185, 84, 0.5)';
+    return '3px solid transparent';
+  }};
   transition: all 0.3s ease-in-out;
-  animation: ${props => props.isCurrent ? css`${fadeIn} 0.4s ease-out, ${pulse} 2s infinite` : css`${fadeIn} 0.4s ease-out`};
+  animation: ${props => {
+    if (props.isCurrent) return css`${fadeIn} 0.4s ease-out, ${pulse} 2s infinite`;
+    if (props.isSelected) return css`${fadeIn} 0.4s ease-out, ${playPulse} 0.8s infinite`;
+    return css`${fadeIn} 0.4s ease-out`;
+  }};
   transform-origin: center left;
   cursor: ${props => props.inQueue ? 'pointer' : 'default'};
   
@@ -59,7 +78,11 @@ const QueueItemContainer = styled.div`
   }
   
   &:hover {
-    background-color: ${props => props.isCurrent ? 'rgba(29, 185, 84, 0.15)' : 'rgba(255, 255, 255, 0.05)'};
+    background-color: ${props => {
+      if (props.isCurrent) return 'rgba(29, 185, 84, 0.15)';
+      if (props.isSelected) return 'rgba(29, 185, 84, 0.1)';
+      return 'rgba(255, 255, 255, 0.05)';
+    }};
     transform: ${props => props.inQueue ? 'translateX(3px)' : 'none'};
   }
 `;
@@ -107,8 +130,16 @@ const ArtistName = styled.div`
 
 const StatusLabel = styled.div`
   font-size: 10px;
-  background: ${props => props.inQueue ? 'rgba(255, 255, 255, 0.1)' : '#1DB954'};
-  color: ${props => props.inQueue ? '#b3b3b3' : 'white'};
+  background: ${props => {
+    if (!props.inQueue) return '#1DB954';
+    if (props.isPlaying) return 'rgba(29, 185, 84, 0.3)';
+    return 'rgba(255, 255, 255, 0.1)';
+  }};
+  color: ${props => {
+    if (!props.inQueue) return 'white';
+    if (props.isPlaying) return '#1DB954';
+    return '#b3b3b3';
+  }};
   border-radius: 2px;
   padding: 2px 6px;
   margin-left: 8px;
@@ -118,6 +149,10 @@ const StatusLabel = styled.div`
   
   ${props => !props.inQueue && css`
     animation: ${pulse} 2s infinite;
+  `}
+  
+  ${props => props.isPlaying && css`
+    animation: ${playPulse} 1s infinite;
   `}
   
   &:hover {
@@ -230,53 +265,62 @@ const EmptyMessage = styled.div`
   font-style: italic;
 `;
 
+const QueuePosition = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: ${props => props.isPlaying ? '#1DB954' : 'rgba(255, 255, 255, 0.1)'};
+  color: ${props => props.isPlaying ? 'white' : '#b3b3b3'};
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 8px;
+  transition: all 0.3s ease;
+`;
+
 const QueueItem = ({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => {
-  const [showAnimation, setShowAnimation] = useState(false);
+  const [isSelected, setIsSelected] = useState(false);
   
-  // Animar elemento cuando cambie el nombre o URI
   useEffect(() => {
-    if (track) {
-      setShowAnimation(true);
-      const timer = setTimeout(() => setShowAnimation(false), 300);
+    if (isSelected) {
+      const timer = setTimeout(() => setIsSelected(false), 2000);
       return () => clearTimeout(timer);
     }
-  }, [track?.name, track?.uri]);
+  }, [isSelected]);
   
   const handleClick = () => {
-    console.log(`🖱️ Click en elemento: ${track.name}`);
-    
     if (inQueue && queuePosition !== undefined) {
       if (onPlayItem) {
         console.log(`💾 Intentando reproducir canción #${queuePosition} en cola (index ${queuePosition - 1})`);
+        setIsSelected(true);
         onPlayItem(queuePosition - 1); // Restamos 1 para obtener el índice en la cola (0-based)
-      } else {
-        console.error('ERROR: onPlayItem no está definido');
       }
-    } else {
-      console.log('El elemento no está en cola o no tiene posición definida');
     }
   };
-
-  if (!track) return null;
-
+  
   return (
     <QueueItemContainer 
-      isCurrent={isCurrent} 
+      isCurrent={isCurrent}
       inQueue={inQueue}
       onClick={handleClick}
-      title={inQueue ? `Reproducir "${track.name}" ahora` : undefined}
-      style={showAnimation ? { transform: 'scale(1.02)' } : {}}
+      isSelected={isSelected}
     >
-      <AlbumThumb 
-        image={track.image} 
-        isCurrent={isCurrent} 
-      />
+      {/* Numeración en cola */}
+      {inQueue && (
+        <QueuePosition isPlaying={isSelected}>
+          {queuePosition}
+        </QueuePosition>
+      )}
+      
+      <AlbumThumb image={track.image} isCurrent={isCurrent} />
       <TrackInfo>
         <TrackName>{track.name}</TrackName>
         <ArtistName>{track.artist}</ArtistName>
       </TrackInfo>
-      <StatusLabel inQueue={inQueue}>  
-        {isCurrent ? 'Reproduciendo' : queuePosition ? `#${queuePosition} en cola` : 'En cola'}
+      <StatusLabel inQueue={inQueue}>
+        {isCurrent ? 'Sonando ahora' : inQueue ? `En cola` : 'Último reproducido'}
       </StatusLabel>
     </QueueItemContainer>
   );
@@ -427,69 +471,56 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
   
   // Función para reproducir una canción específica de la cola
   const handlePlayQueueItem = async (index) => {
+    if (isPlayingQueueItem) {
+      console.log('Ya hay una operación de reproducción en curso, espera...');
+      toast.info('Hay una reproducción en curso, espera un momento...', {
+        position: 'bottom-center',
+        autoClose: 2000
+      });
+      return;
+    }
+    
+    // Verifiquemos primero que el índice es válido
+    if (index < 0 || index >= filteredQueue.length) {
+      console.error(`Índice de cola inválido: ${index}. La cola tiene ${filteredQueue.length} elementos`);
+      toast.error('No se puede reproducir: posición inválida en la cola', {
+        position: 'bottom-center',
+        autoClose: 5000
+      });
+      return;
+    }
+    
+    console.log(`Reproduciendo elemento #${index + 1} de la cola: ${filteredQueue[index].name}`);
+    setIsPlayingQueueItem(true);
+    setIsTransitioning(true);
+    
     try {
-      if (isPlayingQueueItem) {
-        toast.info('Ya hay una canción cambiando...', {
-          position: 'bottom-center',
-          autoClose: 2000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
-        return;
+      // Validaciones de servicio
+      if (!spotifyService) {
+        throw new Error('Servicio de Spotify no disponible');
       }
       
-      // Obtener la información de la canción
-      const trackToPlay = filteredQueue[index];
-      
-      // Mostrar notificación visual con estilo
-      toast.success(
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <FiPlay style={{ marginRight: '8px' }} />
-          <div>
-            <strong>Reproduciendo</strong><br />
-            {trackToPlay.name} - {trackToPlay.artist}
-          </div>
-        </div>, {
-        position: 'bottom-center',
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
-      
-      setIsPlayingQueueItem(true);
-      setIsTransitioning(true);
-      console.log(`🎯 Intentando reproducir canción #${index} de la cola...`);
-      
-      if (!spotifyService || !spotifyService.playQueueItem) {
-        console.error('ERROR: spotifyService o playQueueItem no está disponible');
-        toast.error('Error en el servicio de reproducción', {
-          position: 'bottom-center',
-          autoClose: 5000
-        });
-        setIsPlayingQueueItem(false);
-        setIsTransitioning(false);
-        return;
+      if (!spotifyService.playQueueItem) {
+        throw new Error('Funcionalidad de reproducción de cola no disponible');
       }
       
       // Intentar reproducir la canción
       const result = await spotifyService.playQueueItem(index);
       console.log('Resultado de la operación:', result);
       
-      // Destacar visualmente la canción que se está reproduciendo ahora
-      // Esperar un momento y luego refrescar la UI para mostrar el cambio
+      toast.success(`Reproduciendo: ${filteredQueue[index].name}`, {
+        position: 'bottom-center',
+        autoClose: 2000
+      });
+      
+      // Destacar visualmente la canción y actualizar la interfaz
       setTimeout(async () => {
         try {
           await refreshQueue();
           setIsTransitioning(false);
         } catch (error) {
           console.error('Error actualizando UI tras cambio de canción:', error);
-          toast.warning(`Error actualizando la interfaz: ${error.message}`, {
+          toast.warning(`No se pudo actualizar la interfaz: ${error.message}`, {
             position: 'bottom-center'
           });
         } finally {
@@ -499,10 +530,25 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
       
     } catch (error) {
       console.error('Error reproduciendo canción de la cola:', error);
-      toast.error(`Error: ${error.message}`, {
+      
+      // Mensajes de error más específicos según el problema
+      let errorMessage = 'No se pudo reproducir la canción seleccionada';
+      
+      if (error.message.includes('No hay dispositivo activo')) {
+        errorMessage = 'No hay dispositivo de Spotify activo. Abre Spotify en algún dispositivo primero.';
+      } else if (error.message.includes('premium')) {
+        errorMessage = 'Se requiere una cuenta premium de Spotify para esta función';
+      } else if (error.message.includes('token')) {
+        errorMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(`Error: ${errorMessage}`, {
         position: 'bottom-center',
         autoClose: 5000
       });
+      
       setIsTransitioning(false);
       setIsPlayingQueueItem(false);
     }
@@ -557,24 +603,33 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
         />
       )}
       
-      {/* Contenedor con scroll para elementos de la cola */}
+      {/* Contenedor con virtualización para elementos de la cola */}
       <QueueItemsContainer>
         {filteredQueue && filteredQueue.length > 0 ? (
-          // IMPORTANTE: Renderizamos cada elemento en el orden exacto en que viene
-          // No utilizamos métodos que puedan alterar el orden
-          filteredQueue.map((track, index) => {
-            console.log(`QueueDisplay - Renderizando [${index}]:`, track.name);
-            return (
-              <QueueItem
-                key={`queue-item-${index}-${track.uri || track.name}`}
-                track={track}
-                isCurrent={false}
-                inQueue={true}
-                queuePosition={index + 1} // Mostramos la posición en la cola
-                onPlayItem={handlePlayQueueItem}
-              />
-            );
-          })
+          // Implementamos virtualización para mejorar rendimiento con listas largas
+          <List
+            height={Math.min(400, filteredQueue.length * 44)} // altura máxima o altura basada en número de elementos
+            itemCount={filteredQueue.length}
+            itemSize={44} // altura aproximada de cada elemento
+            width="100%"
+            overscanCount={5} // Precargar elementos para scroll más fluido
+          >
+            {({ index, style }) => {
+              const track = filteredQueue[index];
+              return (
+                <div style={style}>
+                  <QueueItem
+                    key={`queue-item-${index}-${track.uri || track.name}`}
+                    track={track}
+                    isCurrent={false}
+                    inQueue={true}
+                    queuePosition={index + 1} // Mostramos la posición en la cola
+                    onPlayItem={handlePlayQueueItem}
+                  />
+                </div>
+              );
+            }}
+          </List>
         ) : !currentTrack ? (
           <EmptyMessage>No hay canciones en cola</EmptyMessage>
         ) : null}
