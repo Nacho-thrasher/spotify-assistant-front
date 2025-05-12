@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiMusic, FiZap, FiPlus } from 'react-icons/fi'; // Importamos íconos necesarios
+import { FiMusic, FiZap, FiPlus, FiLoader } from 'react-icons/fi'; // Importamos íconos necesarios
 import FeedbackButton from './FeedbackButton';
 import { spotifyService } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useAssistant } from '../../contexts/AssistantContext'; // Importar el contexto del asistente
+import { CgSpinner } from 'react-icons/cg'; // Ícono para el spinner de carga
 
 const MessageContainer = styled.div`
   display: flex;
@@ -118,25 +119,39 @@ const AddToQueueButton = styled.button`
   justify-content: center;
   right: 8px;
   bottom: 8px;
-  background: #1DB954;
+  background-color: rgba(29, 185, 84, 0.8);
   color: white;
   border: none;
   border-radius: 50%;
   width: 24px;
   height: 24px;
   cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0.9;
+  transition: all 0.2s ease;
   
   &:hover {
-    opacity: 1;
-    transform: scale(1.1);
+    background-color: rgba(29, 185, 84, 1);
+    transform: scale(1.05);
+  }
+  
+  &:active {
+    transform: scale(0.95);
   }
   
   &:disabled {
-    background: #666;
+    background-color: rgba(29, 185, 84, 0.4);
     cursor: not-allowed;
-    opacity: 0.6;
+    transform: none;
+  }
+`;
+
+// Animación para el spinner
+const Spinner = styled(CgSpinner)`
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -208,12 +223,13 @@ const SearchResultCard = ({ track, isAI, aiSuggestion, onAddToQueue }) => {
       );
       console.log('Canción añadida a la cola exitosamente');
       
-      // Notificar al padre para que actualice la lista de reproducción
+      // Notificar al componente padre para iniciar el proceso de actualización
+      // de la cola con múltiples intentos
       if (onAddToQueue) {
-        // Esperamos 500ms para asegurarnos que la API de Spotify tenga tiempo de procesar
+        // Esperamos un momento antes del primer intento
         setTimeout(() => {
           onAddToQueue();
-        }, 500);
+        }, 200);
       }
     } catch (error) {
       console.error('Error al añadir a la cola:', error);
@@ -248,7 +264,11 @@ const SearchResultCard = ({ track, isAI, aiSuggestion, onAddToQueue }) => {
           disabled={isAddingToQueue}
           title="Añadir a la cola"
         >
-          <FiPlus size={14} />
+          {isAddingToQueue ? (
+            <Spinner size={14} color="#fff" />
+          ) : (
+            <FiPlus size={14} />
+          )}
         </AddToQueueButton>
       )}
     </SearchResultItem>
@@ -260,13 +280,32 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
   const isAIRecommendation = searchResults?.aiSuggestions && searchResults.tracks;
   const { getCurrentPlayingTrack } = useAssistant();
   
+  // Función que intenta actualizar la cola varias veces para asegurar que se refleje
+  // la adición de la canción en Spotify (que puede tener latencia)
   const handleQueueUpdate = async () => {
-    console.log('Actualizando lista de reproducción después de añadir a la cola...');
+    console.log('Iniciando actualización de cola con múltiples intentos...');
+    
+    // Primer intento inmediato
     try {
       await getCurrentPlayingTrack();
     } catch (error) {
-      console.error('Error al actualizar la lista de reproducción:', error);
+      console.error('Error en el primer intento de actualización:', error);
     }
+    
+    // Programamos varios intentos adicionales con intervalos crecientes
+    // para dar tiempo a que la API de Spotify actualice sus datos
+    const attemptDelays = [800, 1500, 3000]; // Intentos a los 0.8s, 1.5s y 3s
+    
+    attemptDelays.forEach((delay, index) => {
+      setTimeout(async () => {
+        console.log(`Intento #${index + 2} de actualizar cola (${delay}ms)`);
+        try {
+          await getCurrentPlayingTrack();
+        } catch (error) {
+          console.error(`Error en intento #${index + 2}:`, error);
+        }
+      }, delay);
+    });
   };
   
   return (
