@@ -226,19 +226,27 @@ export const AssistantContextProvider = ({ children }) => {
       const response = await assistantService.sendMessage(message, userId);
 
       if (response) {
-        const assistantMessage = {
+        // Construir el objeto de mensaje del asistente
+        let assistantMessage = {
           role: 'assistant',
           content: response.message || '',
           timestamp: new Date().toISOString(),
           action: response.action || '',
-          parameters: response.parameters || {},
-          searchResults: response.searchResults,
-          // Añadir la propiedad aiSuggestions si existe en la respuesta
-          ...(response.aiSuggestions && { searchResults: { 
-            ...response.searchResults,
-            aiSuggestions: response.aiSuggestions 
-          }})
+          parameters: response.parameters || {}
         };
+        
+        // Manejar searchResults y aiSuggestions correctamente
+        if (response.recommendations && response.aiSuggestions) {
+          // Para recomendaciones de IA, crear la estructura esperada por Message.js
+          console.log('👁 Recibidas sugerencias de IA del backend');
+          assistantMessage.searchResults = {
+            tracks: response.recommendations,
+            aiSuggestions: response.aiSuggestions
+          };
+        } else if (response.searchResults) {
+          // Conservar resultados de búsqueda normales
+          assistantMessage.searchResults = response.searchResults;
+        }
         
         setMessages(prevMessages => [...prevMessages, assistantMessage]);
 
