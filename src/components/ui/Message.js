@@ -282,30 +282,35 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
   
   // Función que intenta actualizar la cola varias veces para asegurar que se refleje
   // la adición de la canción en Spotify (que puede tener latencia)
+  // Función para simular un clic en el botón "Actualizar" de la cola
   const handleQueueUpdate = async () => {
-    console.log('Iniciando actualización de cola con múltiples intentos...');
+    // Buscar el botón de actualizar por su atributo title
+    console.log('Buscando botón de actualizar cola...');
     
-    // Primer intento inmediato
+    // Primer intento inmediato de actualizar
     try {
       await getCurrentPlayingTrack();
     } catch (error) {
-      console.error('Error en el primer intento de actualización:', error);
+      console.error('Error al actualizar cola:', error);
     }
     
-    // Programamos varios intentos adicionales con intervalos crecientes
-    // para dar tiempo a que la API de Spotify actualice sus datos
-    const attemptDelays = [800, 1500, 3000]; // Intentos a los 0.8s, 1.5s y 3s
-    
-    attemptDelays.forEach((delay, index) => {
-      setTimeout(async () => {
-        console.log(`Intento #${index + 2} de actualizar cola (${delay}ms)`);
-        try {
-          await getCurrentPlayingTrack();
-        } catch (error) {
-          console.error(`Error en intento #${index + 2}:`, error);
+    // Esperar un segundo y luego simular un clic en el botón
+    setTimeout(() => {
+      try {
+        // Buscar el botón por su atributo title
+        const refreshButton = document.querySelector('button[title="Actualizar cola desde Spotify"]');
+        if (refreshButton) {
+          console.log('Botón de actualizar encontrado, simulando clic...');
+          refreshButton.click();
+        } else {
+          console.log('Botón de actualizar no encontrado');
+          // Intento alternativo de actualizar mediante la función
+          getCurrentPlayingTrack().catch(e => console.error('Error en actualización alternativa:', e));
         }
-      }, delay);
-    });
+      } catch (error) {
+        console.error('Error al simular clic en botón de actualizar:', error);
+      }
+    }, 1000); // Esperar 1 segundo antes de simular el clic
   };
   
   return (
