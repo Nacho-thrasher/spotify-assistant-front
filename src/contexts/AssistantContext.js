@@ -195,8 +195,9 @@ export const AssistantContextProvider = ({ children }) => {
   const sendMessage = async (message) => {
     if (!message || isProcessing) return;
     
-    // Obtener userId para enviar al backend
-    const userId = user?.id;
+    // Obtener identificador para enviar al backend
+    // Como no tenemos user.id, usamos el accessToken como identificador único
+    const userId = localStorage.getItem('spotify_access_token');
     
     // Mostrar notificación de procesamiento
     const toastId = toast.info('🤖 Procesando tu mensaje...', {
