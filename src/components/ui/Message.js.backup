@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FiMusic } from 'react-icons/fi';
-import { IoMdBrain } from 'react-icons/io'; // Importar icono de cerebro para IA
 import FeedbackButton from './FeedbackButton';
 
 const MessageContainer = styled.div`
@@ -39,7 +38,6 @@ const SearchResultItem = styled.div`
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   gap: 10px;
-  position: relative;
 `;
 
 const SearchResultImage = styled.div`
@@ -90,56 +88,6 @@ const Timestamp = styled.div`
   text-align: right;
 `;
 
-// Nuevo componente para mostrar la etiqueta de IA
-const AIBadge = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: linear-gradient(90deg, #7e57c2, #1db954);
-  color: white;
-  font-size: 9px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-`;
-
-// Estilo para el tooltips explicativo
-const TrackTooltip = styled.div`
-  position: absolute;
-  background-color: #282828;
-  border: 1px solid #444;
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  width: 200px;
-  color: white;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 5px;
-  z-index: 10;
-  opacity: 0;
-  transition: opacity 0.2s;
-  pointer-events: none;
-  ${SearchResultItem}:hover & {
-    opacity: 1;
-  }
-  
-  &:after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: #444 transparent transparent transparent;
-  }
-`;
-
 const formatTime = (date) => {
   if (!date) return '';
   if (typeof date === 'string') {
@@ -150,7 +98,6 @@ const formatTime = (date) => {
 
 const Message = ({ text, sender, timestamp, searchResults, action, parameters }) => {
   const isUser = sender === 'user';
-  const isAIRecommendation = searchResults?.aiSuggestions && searchResults.tracks;
   
   return (
     <MessageContainer isUser={isUser}>
@@ -160,37 +107,15 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
           
           {searchResults && searchResults.tracks && searchResults.tracks.length > 0 && (
             <SearchResultsContainer>
-              {searchResults.tracks.map((track, index) => {
-                // Buscar la sugerencia original de la IA si existe
-                const aiSuggestion = isAIRecommendation 
-                  ? searchResults.aiSuggestions.find(s => 
-                      (s.song === track.name || s.song?.toLowerCase() === track.name.toLowerCase()) && 
-                      (s.artist === track.artist || s.artist?.toLowerCase() === track.artist.toLowerCase())
-                    )
-                  : null;
-                
-                return (
-                  <SearchResultItem key={index}>
-                    <SearchResultImage image={track.image} />
-                    <SearchResultInfo>
-                      <TrackName>{track.name}</TrackName>
-                      <ArtistName>{track.artist}</ArtistName>
-                    </SearchResultInfo>
-                    
-                    {isAIRecommendation && (
-                      <>
-                        <AIBadge>
-                          <IoMdBrain size={10} />
-                          IA
-                        </AIBadge>
-                        <TrackTooltip>
-                          Recomendación generada por IA basada en tus gustos y contexto musical.
-                        </TrackTooltip>
-                      </>
-                    )}
-                  </SearchResultItem>
-                );
-              })}
+              {searchResults.tracks.map((track, index) => (
+                <SearchResultItem key={index}>
+                  <SearchResultImage image={track.image} />
+                  <SearchResultInfo>
+                    <TrackName>{track.name}</TrackName>
+                    <ArtistName>{track.artist}</ArtistName>
+                  </SearchResultInfo>
+                </SearchResultItem>
+              ))}
             </SearchResultsContainer>
           )}
         </MessageContent>

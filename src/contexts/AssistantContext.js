@@ -223,10 +223,16 @@ export const AssistantContextProvider = ({ children }) => {
       if (response) {
         const assistantMessage = {
           role: 'assistant',
-          content: response.message,
+          content: response.message || '',
           timestamp: new Date().toISOString(),
-          action: response.action,
-          searchResults: response.searchResults
+          action: response.action || '',
+          parameters: response.parameters || {},
+          searchResults: response.searchResults,
+          // Añadir la propiedad aiSuggestions si existe en la respuesta
+          ...(response.aiSuggestions && { searchResults: { 
+            ...response.searchResults,
+            aiSuggestions: response.aiSuggestions 
+          }})
         };
         
         setMessages(prevMessages => [...prevMessages, assistantMessage]);
