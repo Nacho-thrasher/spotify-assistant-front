@@ -131,7 +131,11 @@ const StyledNavLink = styled(NavLink)`
 
 const ContentSection = styled.div`
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 60px - 80px); /* Altura total menos header y player/navigation */
+  
+  /* Para mejorar el scroll en dispositivos táctiles */
+  -webkit-overflow-scrolling: touch;
 `;
 
 const AppLayout = () => {

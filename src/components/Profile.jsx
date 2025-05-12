@@ -8,6 +8,16 @@ const ProfileContainer = styled.div`
   padding: 20px;
   max-width: 800px;
   margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+  
+  /* Estilos para scroll en dispositivos móviles */
+  -webkit-overflow-scrolling: touch;
+  
+  /* Ajustes para asegurar que el contenido quepa */
+  @media (max-height: 700px) {
+    padding-bottom: 100px;
+  }
 `;
 
 const ProfileHeader = styled.div`
@@ -90,6 +100,7 @@ const ActionButton = styled(Button)`
 
 const StatsCard = styled(ProfileCard)`
   margin-top: 20px;
+  margin-bottom: 60px; /* Añadir espacio en la parte inferior para evitar que se corte */
 `;
 
 const StatGrid = styled.div`
@@ -99,6 +110,11 @@ const StatGrid = styled.div`
   
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, 1fr);
+  }
+  
+  /* En pantallas muy pequeñas, cambiar a una columna */
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
   }
 `;
 
