@@ -4,6 +4,7 @@ import { FiMusic, FiZap, FiPlus } from 'react-icons/fi'; // Importamos íconos n
 import FeedbackButton from './FeedbackButton';
 import { spotifyService } from '../../services/api';
 import { toast } from 'react-toastify';
+import { useAssistant } from '../../contexts/AssistantContext'; // Importar el contexto del asistente
 
 const MessageContainer = styled.div`
   display: flex;
@@ -184,6 +185,7 @@ const formatTime = (date) => {
 // Componente individual para cada resultado de búsqueda
 const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
   const [isAddingToQueue, setIsAddingToQueue] = useState(false);
+  const { getCurrentPlayingTrack } = useAssistant(); // Acceder al contexto del asistente
   
   const handleAddToQueue = async (trackUri) => {
     if (isAddingToQueue) return;
@@ -206,6 +208,9 @@ const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
         }
       );
       console.log('Canción añadida a la cola exitosamente');
+      
+      // Actualizar automáticamente la lista de reproducción
+      await getCurrentPlayingTrack();
     } catch (error) {
       console.error('Error al añadir a la cola:', error);
     } finally {
