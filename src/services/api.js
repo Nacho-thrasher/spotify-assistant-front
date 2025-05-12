@@ -21,6 +21,93 @@ API.interceptors.request.use(config => {
   return config;
 });
 
+// Variable para evitar múltiples intentos de renovación simultáneos
+let isRefreshing = false;
+// Cola de solicitudes fallidas que se reintentarán después de renovar el token
+let failedQueue = [];
+
+// Procesar la cola de solicitudes fallidas
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// Interceptor para manejar errores de autenticación y renovar tokens automáticamente
+API.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+    
+    // Si el error es 401 (No autorizado) y no hemos intentado renovar el token antes para esta solicitud
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Si ya estamos renovando el token, añadir esta solicitud a la cola
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            return API(originalRequest);
+          })
+          .catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Intentar renovar el token
+        const refreshToken = localStorage.getItem('spotify_refresh_token');
+        
+        if (!refreshToken) {
+          // Si no hay refresh token, no podemos renovar
+          console.error('No hay refresh token disponible');
+          // Redirigir al login
+          authService.logout();
+          window.location.href = '/';
+          return Promise.reject(error);
+        }
+        
+        console.log('Renovando token automáticamente...');
+        const response = await authService.refreshToken(refreshToken);
+        const { access_token, expires_in } = response;
+        
+        // Guardar el nuevo token
+        localStorage.setItem('spotify_access_token', access_token);
+        
+        // Actualizar el token en la solicitud original y en todas las solicitudes en cola
+        processQueue(null, access_token);
+        isRefreshing = false;
+        
+        // Reintentar la solicitud original con el nuevo token
+        originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
+        return API(originalRequest);
+      } catch (refreshError) {
+        // Si falla la renovación, limpiar la cola y mostrar error
+        processQueue(refreshError);
+        isRefreshing = false;
+        
+        // Si la renovación falla, probablemente necesitemos iniciar sesión nuevamente
+        console.error('Error al renovar token:', refreshError);
+        authService.logout();
+        window.location.href = '/';
+        
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    // Para otros errores, simplemente los devolvemos
+    return Promise.reject(error);
+  }
+);
+
 // Servicios de autenticación
 export const authService = {
   login: () => {
