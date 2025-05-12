@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { FiMusic, FiBrain } from 'react-icons/fi'; // Importar icono de cerebro para IA
+import { FiMusic, FiZap  } from 'react-icons/fi'; // Importar icono de cerebro para IA
 import FeedbackButton from './FeedbackButton';
 
 const MessageContainer = styled.div`
@@ -179,7 +179,7 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
                     {isAIRecommendation && (
                       <>
                         <AIBadge>
-                          <FiBrain size={10} />
+                          <FiZap size={10} />
                           IA
                         </AIBadge>
                         <TrackTooltip>
