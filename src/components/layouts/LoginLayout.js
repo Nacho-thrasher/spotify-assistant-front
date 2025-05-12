@@ -13,6 +13,7 @@ const LoginContainer = styled.div`
   background: linear-gradient(135deg, #121212 0%, #181818 100%);
   color: white;
   padding: 20px;
+  position: relative;
 `;
 
 const Logo = styled.div`
@@ -48,6 +49,14 @@ const LoginButton = styled(Button)`
   padding: 14px 30px;
 `;
 
+const Footer = styled.div`
+  position: absolute;
+  bottom: 20px;
+  font-size: 14px;
+  color: #afafaf;
+  font-style: italic;
+`;
+
 const LoginLayout = () => {
   const { login } = useAuth();
 
@@ -65,6 +74,7 @@ const LoginLayout = () => {
       <LoginButton primary onClick={login}>
         Conectar con Spotify
       </LoginButton>
+      <Footer>Desarrollado por Nacho EldritchFreak</Footer>
     </LoginContainer>
   );
 };
