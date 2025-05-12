@@ -96,7 +96,31 @@ API.interceptors.response.use(
         processQueue(refreshError);
         isRefreshing = false;
         
-        // Si la renovación falla, probablemente necesitemos iniciar sesión nuevamente
+        // Verificar si es específicamente un error invalid_grant
+        if (refreshError.response && 
+            refreshError.response.data && 
+            refreshError.response.data.error === 'invalid_grant') {
+          
+          console.error('⚠️ Sesión expirada (invalid_grant):', refreshError.response.data.message);
+          
+          // Mostrar mensaje al usuario de forma amigable
+          setTimeout(() => {
+            alert('Tu sesión con Spotify ha expirado. Por favor, inicia sesión nuevamente.');
+          }, 100);
+          
+          // Limpiar datos de autenticación
+          authService.logout();
+          
+          // Redirigir a la página de inicio
+          window.location.href = '/';
+          
+          return Promise.reject({
+            ...refreshError,
+            handled: true // Marcamos el error como manejado
+          });
+        }
+        
+        // Para otros errores de renovación
         console.error('Error al renovar token:', refreshError);
         authService.logout();
         window.location.href = '/';
@@ -117,8 +141,37 @@ export const authService = {
     window.location.href = `${API_URL}/api/auth/login`;
   },
   refreshToken: async (refreshToken) => {
-    const response = await API.post('/auth/refresh-token', { refresh_token: refreshToken });
-    return response.data;
+    try {
+      const response = await API.post('/auth/refresh-token', { refresh_token: refreshToken });
+      return response.data;
+    } catch (error) {
+      // Verificar si es un error específico de invalid_grant
+      if (error.response && 
+          error.response.data && 
+          error.response.data.error === 'invalid_grant') {
+        
+        console.error('⚠️ Sesión expirada (invalid_grant):', error.response.data.message);
+        
+        // Mostrar mensaje al usuario
+        if (typeof window !== 'undefined') {
+          // Usar un setTimeout para asegurar que el mensaje aparezca después de la redirección
+          setTimeout(() => {
+            alert('Tu sesión con Spotify ha expirado. Por favor, inicia sesión nuevamente.');
+          }, 100);
+        }
+        
+        // Limpiar datos de autenticación
+        localStorage.removeItem('spotify_access_token');
+        localStorage.removeItem('spotify_refresh_token');
+        
+        // Redirigir a la página de inicio
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }
+      
+      throw error;
+    }
   },
   logout: () => {
     localStorage.removeItem('spotify_access_token');
