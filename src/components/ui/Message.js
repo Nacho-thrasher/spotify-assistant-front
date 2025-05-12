@@ -182,10 +182,9 @@ const formatTime = (date) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// Componente individual para cada resultado de búsqueda
-const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
+// Props pasamos las funciones de contexto como props
+const SearchResultCard = ({ track, isAI, aiSuggestion, onAddToQueue }) => {
   const [isAddingToQueue, setIsAddingToQueue] = useState(false);
-  const { getCurrentPlayingTrack } = useAssistant(); // Acceder al contexto del asistente
   
   const handleAddToQueue = async (trackUri) => {
     if (isAddingToQueue) return;
@@ -209,8 +208,13 @@ const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
       );
       console.log('Canción añadida a la cola exitosamente');
       
-      // Actualizar automáticamente la lista de reproducción
-      await getCurrentPlayingTrack();
+      // Notificar al padre para que actualice la lista de reproducción
+      if (onAddToQueue) {
+        // Esperamos 500ms para asegurarnos que la API de Spotify tenga tiempo de procesar
+        setTimeout(() => {
+          onAddToQueue();
+        }, 500);
+      }
     } catch (error) {
       console.error('Error al añadir a la cola:', error);
     } finally {
@@ -254,6 +258,16 @@ const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
 const Message = ({ text, sender, timestamp, searchResults, action, parameters }) => {
   const isUser = sender === 'user';
   const isAIRecommendation = searchResults?.aiSuggestions && searchResults.tracks;
+  const { getCurrentPlayingTrack } = useAssistant();
+  
+  const handleQueueUpdate = async () => {
+    console.log('Actualizando lista de reproducción después de añadir a la cola...');
+    try {
+      await getCurrentPlayingTrack();
+    } catch (error) {
+      console.error('Error al actualizar la lista de reproducción:', error);
+    }
+  };
   
   return (
     <MessageContainer isUser={isUser}>
@@ -278,6 +292,7 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
                     track={track}
                     isAI={isAIRecommendation}
                     aiSuggestion={aiSuggestion}
+                    onAddToQueue={handleQueueUpdate}
                   />
                 );
               })}
