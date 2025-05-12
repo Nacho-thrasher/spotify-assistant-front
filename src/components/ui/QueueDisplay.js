@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { FiMusic, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { FiMusic, FiTrash2, FiRefreshCw, FiPlay } from 'react-icons/fi';
 import { spotifyService } from '../../services/api';
 import { useAssistant } from '../../contexts/AssistantContext';
 import { toast } from 'react-toastify';
-import { FixedSizeList as List } from 'react-window';
 
 const QueueContainer = styled.div`
   background-color: #181818;
@@ -611,19 +610,20 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     };
     
     if (filteredQueue && filteredQueue.length > 0) {
-      return (
-        <List
-          height={Math.min(400, filteredQueue.length * 44)}
-          itemCount={filteredQueue.length}
-          itemSize={44}
-          width="100%"
-          overscanCount={5}
-          itemData={itemData}
-          key={queueItemsHash || 'queue-list'}
-        >
-          {QueueItemRow}
-        </List>
-      );
+      // Renderizamos directamente en el contenedor con scroll nativo
+      // en lugar de usar react-window List para mantener el estilo del scroll
+      return filteredQueue.map((track, index) => {
+        return (
+          <QueueItem
+            key={`queue-item-${index}-${track.uri || track.name}`}
+            track={track}
+            isCurrent={false}
+            inQueue={true}
+            queuePosition={index + 1} // Mostramos la posición en la cola
+            onPlayItem={handlePlayQueueItem}
+          />
+        );
+      });
     }
     return <EmptyMessage>No hay canciones en cola</EmptyMessage>;
   }, [filteredQueue, queueItemsHash, handlePlayQueueItem]);
