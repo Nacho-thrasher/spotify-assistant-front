@@ -181,6 +181,71 @@ const formatTime = (date) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+// Componente individual para cada resultado de búsqueda
+const SearchResultCard = ({ track, isAI, aiSuggestion }) => {
+  const [isAddingToQueue, setIsAddingToQueue] = useState(false);
+  
+  const handleAddToQueue = async (trackUri) => {
+    if (isAddingToQueue) return;
+    
+    setIsAddingToQueue(true);
+    try {
+      await spotifyService.addToQueue(trackUri);
+      // Mostrar feedback al usuario con toast
+      toast.success(
+        <div>
+          <strong>{track.name}</strong> de {track.artist} <br/>
+          añadida a la cola
+        </div>,
+        {
+          position: "bottom-right",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        }
+      );
+      console.log('Canción añadida a la cola exitosamente');
+    } catch (error) {
+      console.error('Error al añadir a la cola:', error);
+    } finally {
+      setIsAddingToQueue(false);
+    }
+  };
+  
+  return (
+    <SearchResultItem showActions={true}>
+      <SearchResultImage image={track.image} />
+      <SearchResultInfo>
+        <TrackName>{track.name}</TrackName>
+        <ArtistName>{track.artist}</ArtistName>
+      </SearchResultInfo>
+      
+      {isAI && (
+        <>
+          <AIBadge>
+            <FiZap size={10} />
+            IA
+          </AIBadge>
+          <TrackTooltip>
+            Recomendación generada por IA basada en tus gustos y contexto musical.
+          </TrackTooltip>
+        </>
+      )}
+      
+      {track.uri && (
+        <AddToQueueButton 
+          onClick={() => handleAddToQueue(track.uri)}
+          disabled={isAddingToQueue}
+          title="Añadir a la cola"
+        >
+          <FiPlus size={14} />
+        </AddToQueueButton>
+      )}
+    </SearchResultItem>
+  );
+};
+
 const Message = ({ text, sender, timestamp, searchResults, action, parameters }) => {
   const isUser = sender === 'user';
   const isAIRecommendation = searchResults?.aiSuggestions && searchResults.tracks;
@@ -202,66 +267,13 @@ const Message = ({ text, sender, timestamp, searchResults, action, parameters })
                     )
                   : null;
                 
-                const [isAddingToQueue, setIsAddingToQueue] = useState(false);
-                
-                const handleAddToQueue = async (trackUri) => {
-                  if (isAddingToQueue) return;
-                  
-                  setIsAddingToQueue(true);
-                  try {
-                    await spotifyService.addToQueue(trackUri);
-                    // Mostrar feedback al usuario con toast
-                    toast.success(
-                      <div>
-                        <strong>{track.name}</strong> de {track.artist} <br/>
-                        añadida a la cola
-                      </div>,
-                      {
-                        position: "bottom-right",
-                        autoClose: 2000,
-                        hideProgressBar: false,
-                        closeOnClick: true,
-                        pauseOnHover: true,
-                      }
-                    );
-                    console.log('Canción añadida a la cola exitosamente');
-                  } catch (error) {
-                    console.error('Error al añadir a la cola:', error);
-                  } finally {
-                    setIsAddingToQueue(false);
-                  }
-                };
-                
                 return (
-                  <SearchResultItem key={index} showActions={true}>
-                    <SearchResultImage image={track.image} />
-                    <SearchResultInfo>
-                      <TrackName>{track.name}</TrackName>
-                      <ArtistName>{track.artist}</ArtistName>
-                    </SearchResultInfo>
-                    
-                    {isAIRecommendation && (
-                      <>
-                        <AIBadge>
-                          <FiZap size={10} />
-                          IA
-                        </AIBadge>
-                        <TrackTooltip>
-                          Recomendación generada por IA basada en tus gustos y contexto musical.
-                        </TrackTooltip>
-                      </>
-                    )}
-                    
-                    {track.uri && (
-                      <AddToQueueButton 
-                        onClick={() => handleAddToQueue(track.uri)}
-                        disabled={isAddingToQueue}
-                        title="Añadir a la cola"
-                      >
-                        <FiPlus size={14} />
-                      </AddToQueueButton>
-                    )}                    
-                  </SearchResultItem>
+                  <SearchResultCard 
+                    key={index}
+                    track={track}
+                    isAI={isAIRecommendation}
+                    aiSuggestion={aiSuggestion}
+                  />
                 );
               })}
             </SearchResultsContainer>
