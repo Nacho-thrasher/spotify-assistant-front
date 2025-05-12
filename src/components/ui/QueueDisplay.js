@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { FiMusic, FiTrash2, FiRefreshCw, FiPlay } from 'react-icons/fi';
+import { FiMusic, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { spotifyService } from '../../services/api';
 import { useAssistant } from '../../contexts/AssistantContext';
 import { toast } from 'react-toastify';
@@ -280,7 +280,8 @@ const QueuePosition = styled.div`
   transition: all 0.3s ease;
 `;
 
-const QueueItem = ({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => {
+// Optimizamos QueueItem con memo para prevenir re-renderizados innecesarios
+const QueueItem = memo(({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => {
   const [isSelected, setIsSelected] = useState(false);
   
   useEffect(() => {
@@ -290,15 +291,15 @@ const QueueItem = ({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => 
     }
   }, [isSelected]);
   
-  const handleClick = () => {
-    if (inQueue && queuePosition !== undefined) {
-      if (onPlayItem) {
-        console.log(`💾 Intentando reproducir canción #${queuePosition} en cola (index ${queuePosition - 1})`);
-        setIsSelected(true);
-        onPlayItem(queuePosition - 1); // Restamos 1 para obtener el índice en la cola (0-based)
-      }
+  const handleClick = useCallback(() => {
+    if (inQueue && queuePosition !== undefined && onPlayItem) {
+      console.log(`💾 Intentando reproducir canción #${queuePosition} en cola (index ${queuePosition - 1})`);
+      setIsSelected(true);
+      onPlayItem(queuePosition - 1); // Restamos 1 para obtener el índice en la cola (0-based)
     }
-  };
+  }, [inQueue, queuePosition, onPlayItem]);
+  
+  // Usamos useCallback para evitar re-creaciones de funciones en cada render
   
   return (
     <QueueItemContainer 
@@ -324,9 +325,35 @@ const QueueItem = ({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => 
       </StatusLabel>
     </QueueItemContainer>
   );
-};
+});
 
-const QueueDisplay = ({ currentTrack, queueItems }) => {
+const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
+  // Usamos useMemo para evitar cálculos innecesarios cuando queueItems no cambia realmente
+  const expandedQueueItems = useMemo(() => {
+    console.log('🔄 QueueDisplay: Procesando elementos de cola');
+    if (queueItems && queueItems.length > 0) {
+      return queueItems.map((item, index) => ({
+        ...item,
+        queuePosition: index + 1, // Posición en cola (1-based)
+        key: item.uri || `queue-item-${index}` // Aseguramos clave única para React
+      }));
+    }
+    return [];
+  }, [queueItems]);
+  
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loadingIndex, setLoadingIndex] = useState(null);
+  
+  // Implementamos memoización para valores derivados en lugar de re-calcularlos en cada render
+  const queueItemsHash = useMemo(() => {
+    return queueItems ? queueItems.map(item => item.uri).join('|') : '';
+  }, [queueItems]);
+  
+  // Log que se ejecuta solo cuando realmente la cola cambia
+  useEffect(() => {
+    console.log(`🔄 QueueDisplay: Cola actualizada con ${queueItems?.length || 0} elementos`);
+  }, [queueItems?.length, queueItemsHash]);
+  
   const { refreshQueue } = useAssistant(); // Obtener la función del contexto
   const [filteredQueue, setFilteredQueue] = useState([]);
   const [prevTrack, setPrevTrack] = useState(null);
@@ -423,22 +450,20 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
     setFilteredQueue(finalQueue);
   }, [queueItems, currentTrack]); // Dependencias: se ejecuta cuando cambian los items o la canción actual
   
-  // Función para actualizar manualmente la cola
-  const handleRefreshQueue = async () => {
+  // Función para actualizar manualmente la cola - optimizada con useCallback
+  const handleRefreshQueue = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      console.log('🔄 QueueDisplay - Actualizando cola manualmente...');
-      
-      // Llamar a la función de actualización del contexto
       await refreshQueue();
-      
-      console.log('✅ QueueDisplay - Cola actualizada exitosamente');
     } catch (error) {
-      console.error('❌ Error al actualizar la cola:', error);
+      console.error('Error al actualizar cola:', error);
+      toast.error('No se pudo actualizar la cola', {
+        position: 'bottom-center'
+      });
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [refreshQueue]);
   
   // Función para limpiar la cola
   const handleClearQueue = async () => {
@@ -559,6 +584,53 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
     return null;
   }
   
+  // Optimización para evitar re-renderizados innecesarios
+  const memoizedQueueItems = useMemo(() => {
+    // Solo procesamos esto cuando realmente cambien los datos relevantes
+    if (filteredQueue && filteredQueue.length > 0) {
+      return (
+        <List
+          height={Math.min(400, filteredQueue.length * 44)} // altura máxima o altura basada en número de elementos
+          itemCount={filteredQueue.length}
+          itemSize={44} // altura aproximada de cada elemento
+          width="100%"
+          overscanCount={5} // Precargar elementos para scroll más fluido
+          // La clave key es importante para preservar el estado durante re-renderizados
+          key={queueItemsHash} 
+        >
+          {({ index, style }) => {
+            const track = filteredQueue[index];
+            return (
+              <div style={style} key={track.uri || `queue-item-${index}`}>
+                <QueueItem
+                  track={track}
+                  isCurrent={false}
+                  inQueue={true}
+                  queuePosition={index + 1} // Mostramos la posición en la cola
+                  onPlayItem={handlePlayQueueItem}
+                />
+              </div>
+            );
+          }}
+        </List>
+      );
+    } else if (!currentTrack) {
+      return <EmptyMessage>No hay canciones en cola</EmptyMessage>;
+    }
+    return null;
+  }, [filteredQueue, queueItemsHash, currentTrack, handlePlayQueueItem]);
+
+  // Optimizamos el renderizado del ítem actual para evitar parpadeos
+  const currentTrackItem = useMemo(() => {
+    return currentTrack ? (
+      <QueueItem 
+        track={currentTrack} 
+        isCurrent={true}
+        inQueue={false}
+      />
+    ) : null;
+  }, [currentTrack]);
+
   return (
     <QueueContainer 
       style={isTransitioning ? { boxShadow: '0 0 15px rgba(29, 185, 84, 0.3)' } : {}}
@@ -594,48 +666,16 @@ const QueueDisplay = ({ currentTrack, queueItems }) => {
         )}
       </div>
       
-      {/* Canción actual (siempre visible) */}
-      {currentTrack && (
-        <QueueItem 
-          track={currentTrack} 
-          isCurrent={true}
-          inQueue={false}
-        />
-      )}
+      {/* Canción actual (siempre visible) - usando componente memoizado */}
+      {currentTrackItem}
       
-      {/* Contenedor con virtualización para elementos de la cola */}
+      {/* Contenedor con virtualización para elementos de la cola - usando componente memoizado */}
       <QueueItemsContainer>
-        {filteredQueue && filteredQueue.length > 0 ? (
-          // Implementamos virtualización para mejorar rendimiento con listas largas
-          <List
-            height={Math.min(400, filteredQueue.length * 44)} // altura máxima o altura basada en número de elementos
-            itemCount={filteredQueue.length}
-            itemSize={44} // altura aproximada de cada elemento
-            width="100%"
-            overscanCount={5} // Precargar elementos para scroll más fluido
-          >
-            {({ index, style }) => {
-              const track = filteredQueue[index];
-              return (
-                <div style={style}>
-                  <QueueItem
-                    key={`queue-item-${index}-${track.uri || track.name}`}
-                    track={track}
-                    isCurrent={false}
-                    inQueue={true}
-                    queuePosition={index + 1} // Mostramos la posición en la cola
-                    onPlayItem={handlePlayQueueItem}
-                  />
-                </div>
-              );
-            }}
-          </List>
-        ) : !currentTrack ? (
-          <EmptyMessage>No hay canciones en cola</EmptyMessage>
-        ) : null}
+        {memoizedQueueItems}
       </QueueItemsContainer>
     </QueueContainer>
   );
 };
 
-export default QueueDisplay;
+// Aplicamos memo también al componente principal para prevenir re-renderizados innecesarios
+export default memo(QueueDisplay);
