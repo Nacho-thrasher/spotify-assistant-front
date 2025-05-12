@@ -231,30 +231,43 @@ const RefreshButton = styled.button`
 `;
 
 const QueueItemsContainer = styled.div`
+  flex: 1;
   overflow-y: auto;
-  max-height: 300px;
-  padding-right: 5px;
-  margin-top: 5px;
-  position: relative;
-  z-index: 5;
+  padding-right: 3px;
+  margin-top: 10px;
   
+  /* Personalización del scrollbar (Webkit) - más fino y elegante */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px; /* Reducimos el ancho para que sea más fino */
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #555;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background-clip: content-box;
   }
   
   &::-webkit-scrollbar-thumb:hover {
-    background: #777;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
   }
+  
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  
+  /* Para mejorar el scroll en dispositivos táctiles */
+  -webkit-overflow-scrolling: touch;
+  
+  /* Aplicamos estilos al scroll para que sea consistente con el diseño */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 `;
 
 const EmptyMessage = styled.div`
@@ -584,34 +597,49 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     return null;
   }
   
+  // Creamos un componente memoizado para cada elemento de la lista para evitar re-renderizados
+  const QueueItemRow = memo(({ index, style, data }) => {
+    const { filteredQueue, handlePlayQueueItem } = data;
+    const track = filteredQueue[index];
+    
+    return (
+      <div style={style} key={track.uri || `queue-item-${index}`}>
+        <QueueItem
+          track={track}
+          isCurrent={false}
+          inQueue={true}
+          queuePosition={index + 1}
+          onPlayItem={handlePlayQueueItem}
+        />
+      </div>
+    );
+  });
+  
   // Optimización para evitar re-renderizados innecesarios
   const memoizedQueueItems = useMemo(() => {
+    // Guardamos un valor de referencia para los datos que pasamos a los componentes
+    // para evitar que se creen nuevas referencias en cada render
+    const itemData = {
+      filteredQueue,
+      handlePlayQueueItem
+    };
+    
     // Solo procesamos esto cuando realmente cambien los datos relevantes
     if (filteredQueue && filteredQueue.length > 0) {
       return (
         <List
-          height={Math.min(400, filteredQueue.length * 44)} // altura máxima o altura basada en número de elementos
+          height={Math.min(400, filteredQueue.length * 44)}
           itemCount={filteredQueue.length}
-          itemSize={44} // altura aproximada de cada elemento
+          itemSize={44}
           width="100%"
-          overscanCount={5} // Precargar elementos para scroll más fluido
-          // La clave key es importante para preservar el estado durante re-renderizados
-          key={queueItemsHash} 
+          overscanCount={5}
+          itemData={itemData}
+          // La clave key ayuda a React a identificar cuando la lista realmente cambia
+          key={queueItemsHash}
+          className="queue-list"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255, 255, 255, 0.15) transparent' }}
         >
-          {({ index, style }) => {
-            const track = filteredQueue[index];
-            return (
-              <div style={style} key={track.uri || `queue-item-${index}`}>
-                <QueueItem
-                  track={track}
-                  isCurrent={false}
-                  inQueue={true}
-                  queuePosition={index + 1} // Mostramos la posición en la cola
-                  onPlayItem={handlePlayQueueItem}
-                />
-              </div>
-            );
-          }}
+          {QueueItemRow}
         </List>
       );
     } else if (!currentTrack) {
