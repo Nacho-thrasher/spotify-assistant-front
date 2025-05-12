@@ -10,6 +10,8 @@ const API_URL = isProduction
 // Configuración base para axios
 const API = axios.create({
   baseURL: `${API_URL}/api`,
+  // IMPORTANTE: Habilitar el envío de cookies
+  withCredentials: true,
 });
 
 // Interceptor para incluir el token en las peticiones
