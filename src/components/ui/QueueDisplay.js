@@ -231,43 +231,33 @@ const RefreshButton = styled.button`
 `;
 
 const QueueItemsContainer = styled.div`
-  flex: 1;
   overflow-y: auto;
-  padding-right: 3px;
-  margin-top: 10px;
+  max-height: 300px;
+  padding-right: 5px;
+  margin-top: 5px;
+  position: relative;
+  z-index: 5;
   
-  /* Personalización del scrollbar (Webkit) - más fino y elegante */
   &::-webkit-scrollbar {
-    width: 4px; /* Reducimos el ancho para que sea más fino */
+    width: 6px;
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    border: 1px solid transparent;
-    background-clip: content-box;
+    background: #555;
+    border-radius: 4px;
   }
   
   &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 10px;
+    background: #777;
   }
-  
-  /* Firefox scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   
   /* Para mejorar el scroll en dispositivos táctiles */
   -webkit-overflow-scrolling: touch;
-  
-  /* Aplicamos estilos al scroll para que sea consistente con el diseño */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 `;
 
 const EmptyMessage = styled.div`
@@ -592,19 +582,15 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     }
   };
   
-  // No mostrar nada si no hay tracks para mostrar
-  if (!currentTrack && (!filteredQueue || filteredQueue.length === 0)) {
-    return null;
-  }
-  
   // Creamos un componente memoizado para cada elemento de la lista para evitar re-renderizados
   const QueueItemRow = memo(({ index, style, data }) => {
     const { filteredQueue, handlePlayQueueItem } = data;
     const track = filteredQueue[index];
     
     return (
-      <div style={style} key={track.uri || `queue-item-${index}`}>
+      <div style={style}>
         <QueueItem
+          key={`queue-item-${index}-${track.uri || track.name}`}
           track={track}
           isCurrent={false}
           inQueue={true}
@@ -615,16 +601,15 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     );
   });
   
-  // Optimización para evitar re-renderizados innecesarios
+  // Memoización de elementos de la lista y del track actual
+  // Importante: no usamos condicionales con los hooks
   const memoizedQueueItems = useMemo(() => {
-    // Guardamos un valor de referencia para los datos que pasamos a los componentes
-    // para evitar que se creen nuevas referencias en cada render
+    // Guardamos un valor de referencia para los datos
     const itemData = {
       filteredQueue,
       handlePlayQueueItem
     };
     
-    // Solo procesamos esto cuando realmente cambien los datos relevantes
     if (filteredQueue && filteredQueue.length > 0) {
       return (
         <List
@@ -634,30 +619,31 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
           width="100%"
           overscanCount={5}
           itemData={itemData}
-          // La clave key ayuda a React a identificar cuando la lista realmente cambia
-          key={queueItemsHash}
-          className="queue-list"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255, 255, 255, 0.15) transparent' }}
+          key={queueItemsHash || 'queue-list'}
         >
           {QueueItemRow}
         </List>
       );
-    } else if (!currentTrack) {
-      return <EmptyMessage>No hay canciones en cola</EmptyMessage>;
     }
-    return null;
-  }, [filteredQueue, queueItemsHash, currentTrack, handlePlayQueueItem]);
+    return <EmptyMessage>No hay canciones en cola</EmptyMessage>;
+  }, [filteredQueue, queueItemsHash, handlePlayQueueItem]);
 
-  // Optimizamos el renderizado del ítem actual para evitar parpadeos
+  // Siempre generamos el componente del track actual (sin condicionales)
   const currentTrackItem = useMemo(() => {
-    return currentTrack ? (
+    if (!currentTrack) return null;
+    return (
       <QueueItem 
         track={currentTrack} 
         isCurrent={true}
         inQueue={false}
       />
-    ) : null;
+    );
   }, [currentTrack]);
+  
+  // No mostrar nada si no hay tracks para mostrar
+  if (!currentTrack && (!filteredQueue || filteredQueue.length === 0)) {
+    return null;
+  }
 
   return (
     <QueueContainer 
