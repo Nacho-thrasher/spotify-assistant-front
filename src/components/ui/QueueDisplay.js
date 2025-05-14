@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { FiMusic, FiTrash2, FiRefreshCw, FiPlay } from 'react-icons/fi';
+import { FiMusic, FiTrash2, FiRefreshCw, FiPlay, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { spotifyService } from '../../services/api';
 import { useAssistant } from '../../contexts/AssistantContext';
 import { toast } from 'react-toastify';
@@ -12,11 +12,12 @@ const QueueContainer = styled.div`
   margin: 0 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
-  max-height: 500px; /* Altura máxima para la cola */
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 1;
+  max-height: ${props => props.isCollapsed ? '60px' : '500px'};
+  overflow: hidden;
 `;
 
 const fadeIn = keyframes`
@@ -41,10 +42,49 @@ const QueueTitle = styled.div`
   align-items: center;
   font-size: 14px;
   color: #b3b3b3;
-  margin-bottom: 10px;
+  margin-bottom: ${props => props.isCollapsed ? '0' : '10px'};
   gap: 6px;
   transition: all 0.2s ease;
   animation: ${fadeIn} 0.4s ease-out;
+  cursor: pointer;
+  width: 100%;
+  user-select: none;
+  
+  &:hover {
+    color: white;
+  }
+`;
+
+const CollapseButton = styled.button`
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const TitleContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const QueueStats = styled.div`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+  margin-right: 10px;
 `;
 
 const QueueItemContainer = styled.div`
@@ -231,11 +271,13 @@ const RefreshButton = styled.button`
 
 const QueueItemsContainer = styled.div`
   overflow-y: auto;
-  max-height: 300px;
+  max-height: ${props => props.isCollapsed ? 0 : '300px'};
   padding-right: 5px;
   margin-top: 5px;
   position: relative;
   z-index: 5;
+  opacity: ${props => props.isCollapsed ? 0 : 1};
+  transition: all 0.3s ease;
   
   &::-webkit-scrollbar {
     width: 6px;
@@ -282,7 +324,6 @@ const QueuePosition = styled.div`
   transition: all 0.3s ease;
 `;
 
-// Optimizamos QueueItem con memo para prevenir re-renderizados innecesarios
 const QueueItem = memo(({ track, isCurrent, inQueue, queuePosition, onPlayItem }) => {
   const [isSelected, setIsSelected] = useState(false);
   
@@ -295,13 +336,11 @@ const QueueItem = memo(({ track, isCurrent, inQueue, queuePosition, onPlayItem }
   
   const handleClick = useCallback(() => {
     if (inQueue && queuePosition !== undefined && onPlayItem) {
-      console.log(`💾 Intentando reproducir canción #${queuePosition} en cola (index ${queuePosition - 1})`);
+      console.log(`Intentando reproducir canción #${queuePosition} en cola (index ${queuePosition - 1})`);
       setIsSelected(true);
       onPlayItem(queuePosition - 1); // Restamos 1 para obtener el índice en la cola (0-based)
     }
   }, [inQueue, queuePosition, onPlayItem]);
-  
-  // Usamos useCallback para evitar re-creaciones de funciones en cada render
   
   return (
     <QueueItemContainer 
@@ -330,9 +369,8 @@ const QueueItem = memo(({ track, isCurrent, inQueue, queuePosition, onPlayItem }
 });
 
 const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
-  // Usamos useMemo para evitar cálculos innecesarios cuando queueItems no cambia realmente
   const expandedQueueItems = useMemo(() => {
-    console.log('🔄 QueueDisplay: Procesando elementos de cola');
+    console.log('Procesando elementos de cola');
     if (queueItems && queueItems.length > 0) {
       return queueItems.map((item, index) => ({
         ...item,
@@ -343,17 +381,16 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     return [];
   }, [queueItems]);
   
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingIndex, setLoadingIndex] = useState(null);
   
-  // Implementamos memoización para valores derivados en lugar de re-calcularlos en cada render
   const queueItemsHash = useMemo(() => {
     return queueItems ? queueItems.map(item => item.uri).join('|') : '';
   }, [queueItems]);
   
-  // Log que se ejecuta solo cuando realmente la cola cambia
   useEffect(() => {
-    console.log(`🔄 QueueDisplay: Cola actualizada con ${queueItems?.length || 0} elementos`);
+    console.log(`Cola actualizada con ${queueItems?.length || 0} elementos`);
   }, [queueItems?.length, queueItemsHash]);
   
   const { refreshQueue } = useAssistant(); // Obtener la función del contexto
@@ -364,7 +401,10 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPlayingQueueItem, setIsPlayingQueueItem] = useState(false);
   
-  // Detectar cambios en la pista actual para animar la transición
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed(prev => !prev);
+  }, []);
+  
   useEffect(() => {
     if (currentTrack && prevTrack && currentTrack.name !== prevTrack.name) {
       setIsTransitioning(true);
@@ -374,58 +414,43 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     setPrevTrack(currentTrack);
   }, [currentTrack, prevTrack]);
   
-  // Sincronizar con la información de cola desde el backend
   useEffect(() => {
-    console.log('QueueDisplay - ACTUALIZACIÓN DE COLA DETECTADA');
+    console.log('ACTUALIZACIÓN DE COLA DETECTADA');
     
-    // Verificar si queueItems es un array válido
     if (!queueItems || !Array.isArray(queueItems)) {
-      console.log('QueueDisplay - No hay items en cola o no es un array');
-      console.log('QueueDisplay - LIMPIANDO COLA EN UI');
+      console.log('No hay items en cola o no es un array');
+      console.log('LIMPIANDO COLA EN UI');
       setFilteredQueue([]);
       return;
     }
     
-    // Si la cola está vacía, limpiar la UI
     if (queueItems.length === 0) {
-      console.log('QueueDisplay - Cola vacía recibida del backend');
-      console.log('QueueDisplay - LIMPIANDO COLA EN UI');
+      console.log('Cola vacía recibida del backend');
+      console.log('LIMPIANDO COLA EN UI');
       setFilteredQueue([]);
       return;
     }
     
-    console.log('QueueDisplay - Items en cola recibidos:', queueItems.length);
+    console.log('Items en cola recibidos:', queueItems.length);
     queueItems.forEach((item, idx) => {
-      console.log(`QueueDisplay - Queue[${idx}]:`, item.name, '-', item.artist);
+      console.log(`Queue[${idx}]:`, item.name, '-', item.artist);
     });
-    console.log('QueueDisplay - Canción actual:', currentTrack?.name, 'URI:', currentTrack?.uri);
-    
-    // CONFIAMOS en el backend para el filtrado principal
-    // El backend ya está filtrando:  
-    // 1. La canción actual
-    // 2. Duplicados
-    // 3. Pistas inválidas
-    // Solo hacemos un filtrado mínimo por seguridad
+    console.log('Canción actual:', currentTrack?.name, 'URI:', currentTrack?.uri);
     
     let processedQueue = [...queueItems];
     
-    // Por seguridad, verificamos una vez más que la pista actual no esté en la cola
     if (currentTrack && currentTrack.uri) {
       const beforeFilter = processedQueue.length;
       processedQueue = processedQueue.filter(item => item.uri !== currentTrack.uri);
       
-      // Registrar si se eliminaron elementos (esto normalmente ya no debería ocurrir)
       if (processedQueue.length < beforeFilter) {
-        console.log(`QueueDisplay - SEGURIDAD: Eliminadas ${beforeFilter - processedQueue.length} coincidencias con la pista actual`);
+        console.log(`SEGURIDAD: Eliminadas ${beforeFilter - processedQueue.length} coincidencias con la pista actual`);
       }
     }
     
-    // Verificación final para elementos duplicados manteniendo el orden original exacto
-    // (Mantenemos el orden EXACTO sin reordenar elementos)
     const urisSet = new Set();
     const finalQueue = [];
     
-    // ES EXTREMADAMENTE IMPORTANTE MANTENER EL ORDEN ORIGINAL
     for (let i = 0; i < processedQueue.length; i++) {
       const item = processedQueue[i];
       
@@ -438,21 +463,20 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
         urisSet.add(item.uri);
         finalQueue.push(item);
       } else {
-        console.log(`QueueDisplay - SEGURIDAD: Filtrado duplicado de ${item.name}`);
+        console.log(`SEGURIDAD: Filtrado duplicado de ${item.name}`);
       }
     }
     
-    console.log('QueueDisplay - Cola final:', finalQueue.length, 'elementos');
+    console.log('Cola final:', finalQueue.length, 'elementos');
     if (finalQueue.length > 0) {
       finalQueue.forEach((item, idx) => {
-        console.log(`QueueDisplay - Final[${idx}]:`, item.name, '-', item.artist);
+        console.log(`Final[${idx}]:`, item.name, '-', item.artist);
       });
     }
     
     setFilteredQueue(finalQueue);
   }, [queueItems, currentTrack]); // Dependencias: se ejecuta cuando cambian los items o la canción actual
   
-  // Función para actualizar manualmente la cola - optimizada con useCallback
   const handleRefreshQueue = useCallback(async () => {
     try {
       setIsRefreshing(true);
@@ -467,28 +491,24 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     }
   }, [refreshQueue]);
   
-  // Función para limpiar la cola
   const handleClearQueue = async () => {
     try {
       setIsClearing(true);
-      console.log('🔄 QueueDisplay - Limpiando cola...');
+      console.log('Limpiando cola...');
       await spotifyService.clearQueue();
       
-      // Forzar actualización inmediata de la UI para dar feedback al usuario
-      console.log('🔄 QueueDisplay - Forzando actualización de UI tras limpieza');
       setFilteredQueue([]); // Limpiar inmediatamente la cola en la UI
       
-      // Esperar un momento y luego refrescar los datos desde el servidor
       setTimeout(async () => {
         try {
-          console.log('🔄 QueueDisplay - Obteniendo cola actualizada tras limpieza...');
+          console.log('Obteniendo cola actualizada tras limpieza...');
           await refreshQueue(); // Usar la función del contexto
         } catch (refreshErr) {
           console.error('Error al refrescar cola tras limpieza:', refreshErr);
         }
       }, 1000);
       
-      console.log('✅ Cola limpiada exitosamente');
+      console.log('Cola limpiada exitosamente');
     } catch (error) {
       console.error('Error al limpiar la cola:', error);
     } finally {
@@ -496,7 +516,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     }
   };
   
-  // Función para reproducir una canción específica de la cola
   const handlePlayQueueItem = async (index) => {
     if (isPlayingQueueItem) {
       console.log('Ya hay una operación de reproducción en curso, espera...');
@@ -507,7 +526,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
       return;
     }
     
-    // Verifiquemos primero que el índice es válido
     if (index < 0 || index >= filteredQueue.length) {
       console.error(`Índice de cola inválido: ${index}. La cola tiene ${filteredQueue.length} elementos`);
       toast.error('No se puede reproducir: posición inválida en la cola', {
@@ -522,7 +540,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     setIsTransitioning(true);
     
     try {
-      // Validaciones de servicio
       if (!spotifyService) {
         throw new Error('Servicio de Spotify no disponible');
       }
@@ -531,7 +548,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
         throw new Error('Funcionalidad de reproducción de cola no disponible');
       }
       
-      // Intentar reproducir la canción
       const result = await spotifyService.playQueueItem(index);
       console.log('Resultado de la operación:', result);
       
@@ -540,7 +556,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
         autoClose: 2000
       });
       
-      // Destacar visualmente la canción y actualizar la interfaz
       setTimeout(async () => {
         try {
           await refreshQueue();
@@ -558,7 +573,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     } catch (error) {
       console.error('Error reproduciendo canción de la cola:', error);
       
-      // Mensajes de error más específicos según el problema
       let errorMessage = 'No se pudo reproducir la canción seleccionada';
       
       if (error.message.includes('No hay dispositivo activo')) {
@@ -581,7 +595,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     }
   };
   
-  // Creamos un componente memoizado para cada elemento de la lista para evitar re-renderizados
   const QueueItemRow = memo(({ index, style, data }) => {
     const { filteredQueue, handlePlayQueueItem } = data;
     const track = filteredQueue[index];
@@ -600,18 +613,13 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     );
   });
   
-  // Memoización de elementos de la lista y del track actual
-  // Importante: no usamos condicionales con los hooks
   const memoizedQueueItems = useMemo(() => {
-    // Guardamos un valor de referencia para los datos
     const itemData = {
       filteredQueue,
       handlePlayQueueItem
     };
     
     if (filteredQueue && filteredQueue.length > 0) {
-      // Renderizamos directamente en el contenedor con scroll nativo
-      // en lugar de usar react-window List para mantener el estilo del scroll
       return filteredQueue.map((track, index) => {
         return (
           <QueueItem
@@ -628,7 +636,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     return <EmptyMessage>No hay canciones en cola</EmptyMessage>;
   }, [filteredQueue, queueItemsHash, handlePlayQueueItem]);
 
-  // Siempre generamos el componente del track actual (sin condicionales)
   const currentTrackItem = useMemo(() => {
     if (!currentTrack) return null;
     return (
@@ -640,7 +647,6 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
     );
   }, [currentTrack]);
   
-  // No mostrar nada si no hay tracks para mostrar
   if (!currentTrack && (!filteredQueue || filteredQueue.length === 0)) {
     return null;
   }
@@ -648,43 +654,56 @@ const QueueDisplay = ({ currentTrack, queueItems, onPlayItem }) => {
   return (
     <QueueContainer 
       style={isTransitioning ? { boxShadow: '0 0 15px rgba(29, 185, 84, 0.3)' } : {}}
+      isCollapsed={isCollapsed}
     >
-      <QueueTitle>
-        <FiMusic size={14} style={{ color: isTransitioning ? '#1DB954' : '#b3b3b3' }} /> 
-        Cola de reproducción
-      </QueueTitle>
-      
-      {/* Botones de acción para la cola */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-        {/* Botón para actualizar la cola */}
-        <RefreshButton
-          onClick={handleRefreshQueue}
-          disabled={isRefreshing}
-          className={isRefreshing ? 'loading' : ''}
-          title="Actualizar cola desde Spotify"
-        >
-          {isRefreshing ? 'Actualizando...' : 'Actualizar'}
-          <FiRefreshCw size={12} />
-        </RefreshButton>
-
-        {/* Botón para limpiar la cola */}
-        {filteredQueue && filteredQueue.length > 0 && (
-          <ClearQueueButton
-            onClick={handleClearQueue}
-            disabled={isClearing}
-            title="Limpiar cola"
-          >
-            {isClearing ? 'Limpiando...' : 'Limpiar cola'}
-            <FiTrash2 size={12} />
-          </ClearQueueButton>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <QueueTitle isCollapsed={isCollapsed} onClick={toggleCollapse}>
+          <TitleContent>
+            <FiMusic size={14} style={{ color: isTransitioning ? '#1DB954' : '#b3b3b3' }} /> 
+            Cola de reproducción
+            <QueueStats>
+              {queueItems?.length > 0 ? `${queueItems.length} ${queueItems.length === 1 ? 'canción' : 'canciones'}` : ''}
+            </QueueStats>
+          </TitleContent>
+        </QueueTitle>
+        <CollapseButton onClick={toggleCollapse}>
+          {isCollapsed ? <FiChevronDown /> : <FiChevronUp />}
+        </CollapseButton>
       </div>
       
-      {/* Canción actual (siempre visible) - usando componente memoizado */}
-      {currentTrackItem}
+      {/* Botones de acción para la cola - solo visibles cuando no está colapsado */}
+      {!isCollapsed && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <RefreshButton
+            onClick={handleRefreshQueue}
+            disabled={isRefreshing}
+            className={isRefreshing ? 'loading' : ''}
+            title="Actualizar cola desde Spotify"
+          >
+            {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+            <FiRefreshCw size={12} />
+          </RefreshButton>
+
+          {/* Botón para limpiar la cola */}
+          {filteredQueue && filteredQueue.length > 0 && (
+            <ClearQueueButton
+              onClick={handleClearQueue}
+              disabled={isClearing}
+              title="Limpiar cola"
+            >
+              {isClearing ? 'Limpiando...' : 'Limpiar cola'}
+              <FiTrash2 size={12} />
+            </ClearQueueButton>
+          )}
+        </div>
+      )}
       
-      {/* Contenedor con virtualización para elementos de la cola - usando componente memoizado */}
-      <QueueItemsContainer>
+      {/* Contenedor con virtualización para elementos de la cola y canción actual */}
+      <QueueItemsContainer isCollapsed={isCollapsed}>
+        {/* Canción actual (siempre visible) - usando componente memoizado */}
+        {currentTrackItem}
+        
+        {/* Elementos de la cola */}
         {memoizedQueueItems}
       </QueueItemsContainer>
     </QueueContainer>

@@ -224,7 +224,7 @@ const AppLayout = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refreshQueue]);
+  }, [refreshQueue, setIsPlaying]);
   
   // Comprobar si hay cambios en el track actual (se usa en cada polling)
   const checkForChanges = useCallback(async () => {
@@ -311,7 +311,7 @@ const AppLayout = () => {
     } catch (error) {
       console.error('Error en polling completo:', error);
     }
-  }, [lastTrackId, refreshQueue]);
+  }, [lastTrackId, refreshQueue, setIsPlaying]);
 
   // Iniciar el seguimiento automático de reproducción
   useEffect(() => {
