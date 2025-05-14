@@ -37,11 +37,24 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth();
     
-    // Verificar tokens en la URL (después de redirección OAuth)
+    // Verificar tokens o errores en la URL (después de redirección OAuth)
     const queryParams = new URLSearchParams(window.location.search);
     const urlAccessToken = queryParams.get('access_token');
     const urlRefreshToken = queryParams.get('refresh_token');
+    const error = queryParams.get('error');
+    const errorMessage = queryParams.get('message');
     
+    // Si hay un error en la URL, mostrarlo
+    if (error) {
+      console.error(`Error de autenticación: ${error} - ${errorMessage}`);
+      alert(`Error al iniciar sesión: ${decodeURIComponent(errorMessage || 'Error desconocido')}`);
+      
+      // Limpiar URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+    
+    // Si hay tokens en la URL, guardarlos
     if (urlAccessToken) {
       // Guardar tokens en localStorage
       localStorage.setItem('spotify_access_token', urlAccessToken);
